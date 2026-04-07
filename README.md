@@ -66,16 +66,17 @@ The plugin can monitor external windlass controls (such as NMEA 2000 data or oth
 - External control is only active when chain counter is enabled (chain rate > 0)
 
 This feature is useful when:
+
 - Your windlass is controlled by multiple systems (relay plugin + external system)
 - You want to track chain deployment from NMEA 2000 windlass data
 - You need chain counter tracking even when the windlass is operated manually or by other systems
 - You want unified windlass state reporting regardless of which system is controlling the windlass
 - You're integrating with existing windlass control systems while adding chain tracking and state monitoring
 
-
 **State Priority Logic:**
+
 - If external up control is active → windlass state path shows "up"
-- If external down control is active → windlass state path shows "down"  
+- If external down control is active → windlass state path shows "down"
 - If external control is off but relay up is active → windlass state path shows "up"
 - If external control is off but relay down is active → windlass state path shows "down"
 - If both external and relay controls are off → windlass state path shows "off"

@@ -56,7 +56,7 @@ const start = (app: ServerAPI) => {
   let lastChainUpdate: number = Date.now() // Last time chain counter was updated
   let chainCounterUpdateTimer: NodeJS.Timeout | null = null // Timer for continuous chain counter updates
   let notificationResetTimer: NodeJS.Timeout | null = null // Timer for resetting timeout notification
-  
+
   // External control state tracking for chain counter
   let externalUpState = false
   let externalDownState = false
@@ -105,7 +105,7 @@ const start = (app: ServerAPI) => {
       // Priority: external control takes precedence if any external path is active
       const externalActive = externalCurrentState !== WindlassState.Off
       const activeState = externalActive ? externalCurrentState : currentState
-      
+
       updateChainCounter(activeState, activeState)
       // Send current chain counter value
       sendChainCounterUpdate()
@@ -283,7 +283,10 @@ const start = (app: ServerAPI) => {
 
       // Manage chain counter timer based on external state
       // External control takes precedence over relay control for continuous updates
-      if (newExternalState === WindlassState.Up || newExternalState === WindlassState.Down) {
+      if (
+        newExternalState === WindlassState.Up ||
+        newExternalState === WindlassState.Down
+      ) {
         startChainCounterContinuousUpdates()
       } else {
         // Only stop if relay control is also off
@@ -293,7 +296,7 @@ const start = (app: ServerAPI) => {
       }
 
       externalCurrentState = newExternalState
-      
+
       // Update overall windlass state (external takes precedence)
       updateOverallWindlassState()
     }
@@ -345,7 +348,7 @@ const start = (app: ServerAPI) => {
       }
 
       currentState = newState
-      
+
       // Update overall windlass state (external takes precedence if active)
       updateOverallWindlassState()
     }
@@ -380,24 +383,28 @@ const start = (app: ServerAPI) => {
           period: 100
         }
       ]
-      
+
       // Add external control paths if configured
       if (props.externalUpPath && props.chainRateFeetPerMinute > 0) {
         subscriptionPaths.push({
           path: props.externalUpPath,
           period: 100
         })
-        app.debug(`Added external up path subscription: ${props.externalUpPath}`)
+        app.debug(
+          `Added external up path subscription: ${props.externalUpPath}`
+        )
       }
-      
+
       if (props.externalDownPath && props.chainRateFeetPerMinute > 0) {
         subscriptionPaths.push({
           path: props.externalDownPath,
           period: 100
         })
-        app.debug(`Added external down path subscription: ${props.externalDownPath}`)
+        app.debug(
+          `Added external down path subscription: ${props.externalDownPath}`
+        )
       }
-      
+
       const subscriptionOptions = {
         context: 'vessels.self' as Context,
         subscribe: subscriptionPaths
@@ -663,13 +670,15 @@ const start = (app: ServerAPI) => {
         externalUpPath: {
           type: 'string',
           title: 'External Up Control Path (Optional)',
-          description: 'Signal K path for external windlass up control - used for chain counter tracking only',
+          description:
+            'Signal K path for external windlass up control - used for chain counter tracking only',
           default: 'electrical.windlass.externalUp.state'
         },
         externalDownPath: {
           type: 'string',
           title: 'External Down Control Path (Optional)',
-          description: 'Signal K path for external windlass down control - used for chain counter tracking only',
+          description:
+            'Signal K path for external windlass down control - used for chain counter tracking only',
           default: 'electrical.windlass.externalDown.state'
         }
       }
@@ -714,10 +723,15 @@ const start = (app: ServerAPI) => {
   // External control takes precedence over relay control
   function updateOverallWindlassState() {
     if (!started) return
-    
+
     // External control takes precedence
-    const overallState = externalCurrentState !== WindlassState.Off ? externalCurrentState : currentState
-    app.debug(`Overall windlass state: ${overallState} (external: ${externalCurrentState}, relay: ${currentState})`)
+    const overallState =
+      externalCurrentState !== WindlassState.Off
+        ? externalCurrentState
+        : currentState
+    app.debug(
+      `Overall windlass state: ${overallState} (external: ${externalCurrentState}, relay: ${currentState})`
+    )
     sendState(overallState)
   }
 
