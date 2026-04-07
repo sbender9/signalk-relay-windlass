@@ -17,7 +17,12 @@ class IntegrationMockAPI {
   }
 
   subscriptionmanager = {
-    subscribe: (options: any, onStop: any[], errorCallback: Function, deltaCallback: Function) => {
+    subscribe: (
+      options: any,
+      onStop: any[],
+      errorCallback: Function,
+      deltaCallback: Function
+    ) => {
       this.subscribeCallback = deltaCallback
     }
   }
@@ -28,19 +33,26 @@ class IntegrationMockAPI {
 
   putSelfPath(path: string, value: any, callback?: Function) {
     this.relayStates.set(path, Boolean(value))
-    
+
     // Trigger subscription to update internal state
-    if ((path.includes('relay') || path.includes('.state')) && this.subscribeCallback) {
+    if (
+      (path.includes('relay') || path.includes('.state')) &&
+      this.subscribeCallback
+    ) {
       this.subscribeCallback({
-        updates: [{
-          values: [{
-            path: path,
-            value: Boolean(value)
-          }]
-        }]
+        updates: [
+          {
+            values: [
+              {
+                path: path,
+                value: Boolean(value)
+              }
+            ]
+          }
+        ]
       })
     }
-    
+
     if (callback) {
       setTimeout(() => callback({ state: 'COMPLETED', statusCode: 200 }), 1)
     }
@@ -66,7 +78,7 @@ describe('Windlass Plugin Integration Tests', () => {
     it('should handle complete anchor deployment workflow', (done) => {
       const config = {
         windlassPath: 'electrical.windlass.control.state',
-        upRelayPath: 'electrical.windlass.up.state', 
+        upRelayPath: 'electrical.windlass.up.state',
         downRelayPath: 'electrical.windlass.down.state',
         timeoutSeconds: 30,
         switchingDelaySeconds: 0, // Disable delay for test speed
@@ -82,23 +94,23 @@ describe('Windlass Plugin Integration Tests', () => {
 
       // Step 1: Reset chain counter
       resetHandler('vessels.self', config.chainCounterResetPath, true, () => {
-        
         // Step 2: Deploy anchor (down)
         windlassHandler('vessels.self', config.windlassPath, 'down', () => {
-          
           setTimeout(() => {
             // Step 3: Stop windlass
             windlassHandler('vessels.self', config.windlassPath, 'off', () => {
-              
               // Verify chain counter shows deployment
-              const chainMessages = mockApp.messages.filter(m => 
-                m.updates?.[0]?.values?.[0]?.path === config.chainCounterPath
+              const chainMessages = mockApp.messages.filter(
+                (m) =>
+                  m.updates?.[0]?.values?.[0]?.path === config.chainCounterPath
               )
               expect(chainMessages.length).to.be.greaterThan(1)
-              
-              const lastChainValue = chainMessages[chainMessages.length - 1].updates[0].values[0].value
+
+              const lastChainValue =
+                chainMessages[chainMessages.length - 1].updates[0].values[0]
+                  .value
               expect(lastChainValue).to.be.greaterThan(0)
-              
+
               done()
             })
           }, 500) // Deploy for 0.5 seconds
@@ -110,7 +122,7 @@ describe('Windlass Plugin Integration Tests', () => {
       const config = {
         windlassPath: 'electrical.windlass.control.state',
         upRelayPath: 'electrical.windlass.up.state',
-        downRelayPath: 'electrical.windlass.down.state', 
+        downRelayPath: 'electrical.windlass.down.state',
         timeoutSeconds: 30,
         switchingDelaySeconds: 0,
         chainRateFeetPerMinute: 120,
@@ -126,28 +138,38 @@ describe('Windlass Plugin Integration Tests', () => {
       windlassHandler('vessels.self', config.windlassPath, 'down', () => {
         setTimeout(() => {
           windlassHandler('vessels.self', config.windlassPath, 'off', () => {
-            
             // Get chain amount after deployment
-            const deployMessages = mockApp.messages.filter(m => 
-              m.updates?.[0]?.values?.[0]?.path === config.chainCounterPath
+            const deployMessages = mockApp.messages.filter(
+              (m) =>
+                m.updates?.[0]?.values?.[0]?.path === config.chainCounterPath
             )
-            const deployedAmount = deployMessages[deployMessages.length - 1].updates[0].values[0].value
-            
+            const deployedAmount =
+              deployMessages[deployMessages.length - 1].updates[0].values[0]
+                .value
+
             // Now retrieve chain
             windlassHandler('vessels.self', config.windlassPath, 'up', () => {
               setTimeout(() => {
-                windlassHandler('vessels.self', config.windlassPath, 'off', () => {
-                  
-                  // Check final chain amount
-                  const finalMessages = mockApp.messages.filter(m => 
-                    m.updates?.[0]?.values?.[0]?.path === config.chainCounterPath
-                  )
-                  const finalAmount = finalMessages[finalMessages.length - 1].updates[0].values[0].value
-                  
-                  // Should be less than deployed amount
-                  expect(finalAmount).to.be.lessThan(deployedAmount)
-                  done()
-                })
+                windlassHandler(
+                  'vessels.self',
+                  config.windlassPath,
+                  'off',
+                  () => {
+                    // Check final chain amount
+                    const finalMessages = mockApp.messages.filter(
+                      (m) =>
+                        m.updates?.[0]?.values?.[0]?.path ===
+                        config.chainCounterPath
+                    )
+                    const finalAmount =
+                      finalMessages[finalMessages.length - 1].updates[0]
+                        .values[0].value
+
+                    // Should be less than deployed amount
+                    expect(finalAmount).to.be.lessThan(deployedAmount)
+                    done()
+                  }
+                )
               }, 300) // Retrieve for 0.3 seconds
             })
           })

@@ -22,7 +22,12 @@ class MockServerAPI {
   }
 
   subscriptionmanager = {
-    subscribe: (options: any, onStop: any[], errorCallback: Function, deltaCallback: Function) => {
+    subscribe: (
+      options: any,
+      onStop: any[],
+      errorCallback: Function,
+      deltaCallback: Function
+    ) => {
       this.subscriptions.push({ options, onStop, errorCallback, deltaCallback })
       return { unsubscribe: () => {} }
     }
@@ -44,12 +49,16 @@ class MockServerAPI {
     const subscription = this.subscriptions[0]
     if (subscription && subscription.deltaCallback) {
       subscription.deltaCallback({
-        updates: [{
-          values: [{
-            path: path,
-            value: value
-          }]
-        }]
+        updates: [
+          {
+            values: [
+              {
+                path: path,
+                value: value
+              }
+            ]
+          }
+        ]
       })
     }
   }
@@ -161,22 +170,29 @@ describe('Windlass Plugin', () => {
     it('should register subscriptions for relay monitoring', () => {
       plugin.start(windlassConfig, () => {})
       expect(mockApp.subscriptions).to.have.length(1)
-      
+
       const subscription = mockApp.subscriptions[0]
       expect(subscription.options.subscribe).to.have.length(2)
-      expect(subscription.options.subscribe[0].path).to.equal(windlassConfig.upRelayPath)
-      expect(subscription.options.subscribe[1].path).to.equal(windlassConfig.downRelayPath)
+      expect(subscription.options.subscribe[0].path).to.equal(
+        windlassConfig.upRelayPath
+      )
+      expect(subscription.options.subscribe[1].path).to.equal(
+        windlassConfig.downRelayPath
+      )
     })
 
     it('should register PUT handlers', () => {
       plugin.start(windlassConfig, () => {})
       expect(mockApp.putHandlers.has(windlassConfig.windlassPath)).to.be.true
-      expect(mockApp.putHandlers.has(windlassConfig.chainCounterResetPath)).to.be.true
+      expect(mockApp.putHandlers.has(windlassConfig.chainCounterResetPath)).to
+        .be.true
     })
 
     it('should send initial windlass state', () => {
       plugin.start(windlassConfig, () => {})
-      const stateMessage = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+      const stateMessage = mockApp.getLatestMessage(
+        /electrical\.windlass\.control\.state/
+      )
       expect(stateMessage).to.exist
       expect(stateMessage.value).to.equal('off')
     })
@@ -189,9 +205,11 @@ describe('Windlass Plugin', () => {
 
     it('should detect up state when up relay is on', (done) => {
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
-      
+
       setTimeout(() => {
-        const stateMessage = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+        const stateMessage = mockApp.getLatestMessage(
+          /electrical\.windlass\.control\.state/
+        )
         expect(stateMessage.value).to.equal('up')
         done()
       }, 10)
@@ -199,9 +217,11 @@ describe('Windlass Plugin', () => {
 
     it('should detect down state when down relay is on', (done) => {
       mockApp.simulateRelayChange(windlassConfig.downRelayPath, true)
-      
+
       setTimeout(() => {
-        const stateMessage = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+        const stateMessage = mockApp.getLatestMessage(
+          /electrical\.windlass\.control\.state/
+        )
         expect(stateMessage.value).to.equal('down')
         done()
       }, 10)
@@ -210,13 +230,15 @@ describe('Windlass Plugin', () => {
     it('should detect off state when both relays are off', (done) => {
       // First set up state
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
-      
+
       setTimeout(() => {
         // Then turn off
         mockApp.simulateRelayChange(windlassConfig.upRelayPath, false)
-        
+
         setTimeout(() => {
-          const stateMessage = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+          const stateMessage = mockApp.getLatestMessage(
+            /electrical\.windlass\.control\.state/
+          )
           expect(stateMessage.value).to.equal('off')
           done()
         }, 10)
@@ -226,9 +248,11 @@ describe('Windlass Plugin', () => {
     it('should prioritize off state when both relays are on', (done) => {
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
       mockApp.simulateRelayChange(windlassConfig.downRelayPath, true)
-      
+
       setTimeout(() => {
-        const stateMessage = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+        const stateMessage = mockApp.getLatestMessage(
+          /electrical\.windlass\.control\.state/
+        )
         expect(stateMessage.value).to.equal('off')
         done()
       }, 10)
@@ -243,50 +267,75 @@ describe('Windlass Plugin', () => {
     it('should handle windlass up command', (done) => {
       const handler = mockApp.putHandlers.get(windlassConfig.windlassPath)
       expect(handler).to.exist
-      
-      handler('vessels.self', windlassConfig.windlassPath, 'up', (result: any) => {
-        expect(result.state).to.equal('COMPLETED')
-        expect(result.statusCode).to.equal(200)
-        
-        // Check that relays are set correctly
-        expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be.false
-        expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be.true
-        done()
-      })
+
+      handler(
+        'vessels.self',
+        windlassConfig.windlassPath,
+        'up',
+        (result: any) => {
+          expect(result.state).to.equal('COMPLETED')
+          expect(result.statusCode).to.equal(200)
+
+          // Check that relays are set correctly
+          expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be
+            .false
+          expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be.true
+          done()
+        }
+      )
     })
 
     it('should handle windlass down command', (done) => {
       const handler = mockApp.putHandlers.get(windlassConfig.windlassPath)
-      
-      handler('vessels.self', windlassConfig.windlassPath, 'down', (result: any) => {
-        expect(result.state).to.equal('COMPLETED')
-        expect(result.statusCode).to.equal(200)
-        
-        // Check that relays are set correctly
-        expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be.false
-        expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be.true
-        done()
-      })
+
+      handler(
+        'vessels.self',
+        windlassConfig.windlassPath,
+        'down',
+        (result: any) => {
+          expect(result.state).to.equal('COMPLETED')
+          expect(result.statusCode).to.equal(200)
+
+          // Check that relays are set correctly
+          expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be
+            .false
+          expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be
+            .true
+          done()
+        }
+      )
     })
 
     it('should handle windlass off command', (done) => {
       const handler = mockApp.putHandlers.get(windlassConfig.windlassPath)
-      
-      handler('vessels.self', windlassConfig.windlassPath, 'off', (result: any) => {
-        expect(result.state).to.equal('COMPLETED')
-        expect(result.statusCode).to.equal(200)
-        
-        // Check that both relays are off
-        expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be.false
-        expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be.false
-        done()
-      })
+
+      handler(
+        'vessels.self',
+        windlassConfig.windlassPath,
+        'off',
+        (result: any) => {
+          expect(result.state).to.equal('COMPLETED')
+          expect(result.statusCode).to.equal(200)
+
+          // Check that both relays are off
+          expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be
+            .false
+          expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be
+            .false
+          done()
+        }
+      )
     })
 
     it('should reject invalid commands', () => {
       const handler = mockApp.putHandlers.get(windlassConfig.windlassPath)
-      
-      const result = handler('vessels.self', windlassConfig.windlassPath, 'invalid', () => {})
+
+      const result = handler(
+        'vessels.self',
+        windlassConfig.windlassPath,
+        'invalid',
+        () => {}
+      )
       expect(result.state).to.equal('COMPLETED')
       expect(result.statusCode).to.equal(500)
     })
@@ -304,28 +353,43 @@ describe('Windlass Plugin', () => {
     })
 
     it('should register chain counter reset handler', () => {
-      expect(mockApp.putHandlers.has(windlassConfig.chainCounterResetPath)).to.be.true
+      expect(mockApp.putHandlers.has(windlassConfig.chainCounterResetPath)).to
+        .be.true
     })
 
     it('should reset chain counter on PUT command', (done) => {
-      const handler = mockApp.putHandlers.get(windlassConfig.chainCounterResetPath)
-      
-      handler('vessels.self', windlassConfig.chainCounterResetPath, true, (result: any) => {
-        expect(result.state).to.equal('COMPLETED')
-        expect(result.statusCode).to.equal(200)
-        
-        setTimeout(() => {
-          const chainValue = mockApp.getLatestChainCounterValue()
-          expect(chainValue).to.equal(0)
-          done()
-        }, 10)
-      })
+      const handler = mockApp.putHandlers.get(
+        windlassConfig.chainCounterResetPath
+      )
+
+      handler(
+        'vessels.self',
+        windlassConfig.chainCounterResetPath,
+        true,
+        (result: any) => {
+          expect(result.state).to.equal('COMPLETED')
+          expect(result.statusCode).to.equal(200)
+
+          setTimeout(() => {
+            const chainValue = mockApp.getLatestChainCounterValue()
+            expect(chainValue).to.equal(0)
+            done()
+          }, 10)
+        }
+      )
     })
 
     it('should reject invalid reset values', () => {
-      const handler = mockApp.putHandlers.get(windlassConfig.chainCounterResetPath)
-      
-      const result = handler('vessels.self', windlassConfig.chainCounterResetPath, 'invalid', () => {})
+      const handler = mockApp.putHandlers.get(
+        windlassConfig.chainCounterResetPath
+      )
+
+      const result = handler(
+        'vessels.self',
+        windlassConfig.chainCounterResetPath,
+        'invalid',
+        () => {}
+      )
       expect(result.state).to.equal('COMPLETED')
       expect(result.statusCode).to.equal(500)
     })
@@ -339,12 +403,12 @@ describe('Windlass Plugin', () => {
     it('should update chain counter when windlass goes down', (done) => {
       // Start with windlass going down
       mockApp.simulateRelayChange(windlassConfig.downRelayPath, true)
-      
+
       // Wait to simulate some operation time
       setTimeout(() => {
         // Stop windlass
         mockApp.simulateRelayChange(windlassConfig.downRelayPath, false)
-        
+
         setTimeout(() => {
           const chainValue = mockApp.getLatestChainCounterValue()
           expect(chainValue).to.exist
@@ -357,12 +421,12 @@ describe('Windlass Plugin', () => {
 
     it('should not update chain counter when disabled', () => {
       plugin.stop()
-      
+
       const disabledConfig = { ...windlassConfig, chainRateFeetPerMinute: 0 }
       plugin.start(disabledConfig, () => {})
-      
+
       mockApp.simulateRelayChange(windlassConfig.downRelayPath, true)
-      
+
       // Chain counter should remain 0 since it's disabled
       const chainValue = mockApp.getLatestChainCounterValue()
       expect(chainValue).to.equal(0)
@@ -377,25 +441,30 @@ describe('Windlass Plugin', () => {
 
     it('should trigger timeout notification after configured time', (done) => {
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
-      
+
       setTimeout(() => {
-        const notifications = mockApp.messages.filter(m => 
-          m.message.updates?.[0]?.values?.[0]?.path === 'notifications.windlass.timeout'
+        const notifications = mockApp.messages.filter(
+          (m) =>
+            m.message.updates?.[0]?.values?.[0]?.path ===
+            'notifications.windlass.timeout'
         )
         expect(notifications).to.have.length.greaterThan(0)
-        
+
         const notification = notifications[notifications.length - 1]
-        expect(notification.message.updates[0].values[0].value.state).to.equal('alert')
+        expect(notification.message.updates[0].values[0].value.state).to.equal(
+          'alert'
+        )
         done()
       }, 1100) // Wait for timeout + buffer
     }).timeout(2000)
 
     it('should force windlass off on timeout', (done) => {
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
-      
+
       setTimeout(() => {
         expect(mockApp.relayStates.get(windlassConfig.upRelayPath)).to.be.false
-        expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be.false
+        expect(mockApp.relayStates.get(windlassConfig.downRelayPath)).to.be
+          .false
         done()
       }, 1100)
     }).timeout(2000)
@@ -409,25 +478,31 @@ describe('Windlass Plugin', () => {
 
     it('should clear timeout notification after 10 seconds', (done) => {
       mockApp.simulateRelayChange(windlassConfig.upRelayPath, true)
-      
+
       // Wait for timeout to trigger
       setTimeout(() => {
-        const initialNotifications = mockApp.messages.filter(m => 
-          m.message?.updates?.[0]?.values?.[0]?.path === 'notifications.windlass.timeout'
+        const initialNotifications = mockApp.messages.filter(
+          (m) =>
+            m.message?.updates?.[0]?.values?.[0]?.path ===
+            'notifications.windlass.timeout'
         )
         expect(initialNotifications.length).to.be.greaterThan(0)
-        
+
         // Wait for auto-clear (need to wait full 10 seconds)
         setTimeout(() => {
-          const allNotifications = mockApp.messages.filter(m => 
-            m.message?.updates?.[0]?.values?.[0]?.path === 'notifications.windlass.timeout'
+          const allNotifications = mockApp.messages.filter(
+            (m) =>
+              m.message?.updates?.[0]?.values?.[0]?.path ===
+              'notifications.windlass.timeout'
           )
-          
+
           // Should have at least 2: alert and normal
           expect(allNotifications.length).to.be.greaterThan(1)
-          
+
           const lastNotification = allNotifications[allNotifications.length - 1]
-          expect(lastNotification.message.updates[0].values[0].value.state).to.equal('normal')
+          expect(
+            lastNotification.message.updates[0].values[0].value.state
+          ).to.equal('normal')
           done()
         }, 10100) // Wait slightly longer than 10 seconds
       }, 1100)
@@ -440,17 +515,23 @@ describe('Windlass Plugin', () => {
     })
 
     it('should register windlass control metadata', () => {
-      const windlassMetadata = mockApp.getLatestMessage(/electrical\.windlass\.control\.state/)
+      const windlassMetadata = mockApp.getLatestMessage(
+        /electrical\.windlass\.control\.state/
+      )
       expect(windlassMetadata).to.exist
     })
 
     it('should register chain counter metadata', () => {
-      const chainMetadata = mockApp.getLatestMessage(/navigation\.anchor\.chainOut/)
+      const chainMetadata = mockApp.getLatestMessage(
+        /navigation\.anchor\.chainOut/
+      )
       expect(chainMetadata).to.exist
     })
 
     it('should register chain reset metadata', () => {
-      const resetMetadata = mockApp.getLatestMessage(/navigation\.anchor\.chainOut\.reset/)
+      const resetMetadata = mockApp.getLatestMessage(
+        /navigation\.anchor\.chainOut\.reset/
+      )
       expect(resetMetadata).to.exist
     })
   })

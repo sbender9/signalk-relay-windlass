@@ -5,6 +5,7 @@ This directory contains comprehensive tests for the Signal K Relay Windlass plug
 ## Test Structure
 
 ### `windlass.test.ts` - Core Functionality Tests
+
 - Plugin initialization and configuration
 - Basic windlass control (up/down/off commands)
 - PUT handler functionality
@@ -14,6 +15,7 @@ This directory contains comprehensive tests for the Signal K Relay Windlass plug
 - Metadata registration
 
 ### `chain-counter.test.ts` - Chain Counter & Timing Tests
+
 - Chain counter calculation accuracy
 - Timing-sensitive functionality
 - Continuous update behavior
@@ -21,6 +23,7 @@ This directory contains comprehensive tests for the Signal K Relay Windlass plug
 - Chain deployment/retrieval calculations
 
 ### `integration.test.ts` - Integration & Workflow Tests
+
 - Complete anchoring workflows
 - Error handling scenarios
 - Plugin lifecycle management
@@ -29,11 +32,13 @@ This directory contains comprehensive tests for the Signal K Relay Windlass plug
 ## Running Tests
 
 ### All Tests
+
 ```bash
 npm test
 ```
 
 ### Specific Test Categories
+
 ```bash
 # Core functionality tests
 npm run test:unit
@@ -49,6 +54,7 @@ npm run test:watch
 ```
 
 ### Development Testing
+
 ```bash
 # Run tests in watch mode during development
 npm run test:watch
@@ -67,6 +73,7 @@ npx mocha test/*.ts --reporter spec --require tsx
 ## Mock Implementation
 
 Tests use comprehensive mocks of the Signal K Server API that simulate:
+
 - Message handling and subscriptions
 - PUT handler registration
 - Relay state management
@@ -90,7 +97,7 @@ Tests use comprehensive mocks of the Signal K Server API that simulate:
    - Metadata registration
    - Subscription handling
 
-4. **Error Handling** 
+4. **Error Handling**
    - Invalid commands
    - Missing configuration
    - Edge cases and recovery
@@ -98,6 +105,7 @@ Tests use comprehensive mocks of the Signal K Server API that simulate:
 ## Test Data
 
 Tests use realistic configuration values:
+
 - Chain rate: 60 feet/minute (1 foot/second for easy calculation)
 - Safety timeout: 30 seconds (reduced to 1 second in safety tests)
 - Switching delay: 2 seconds (disabled in some tests for speed)

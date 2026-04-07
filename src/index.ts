@@ -83,10 +83,7 @@ const start = (app: ServerAPI) => {
 
   function startChainCounterContinuousUpdates() {
     // Only start continuous updates if chain counter is enabled
-    if (
-      !props.chainRateFeetPerMinute ||
-      props.chainRateFeetPerMinute <= 0
-    ) {
+    if (!props.chainRateFeetPerMinute || props.chainRateFeetPerMinute <= 0) {
       return
     }
 
@@ -94,10 +91,10 @@ const start = (app: ServerAPI) => {
     if (chainCounterUpdateTimer) {
       return
     }
-    
+
     const updateInterval = 1000 // Fixed 1 second interval
     app.debug('Starting chain counter continuous updates every 1 second')
-    
+
     chainCounterUpdateTimer = setInterval(() => {
       // Update chain counter based on current state
       updateChainCounter(currentState, currentState)
@@ -215,7 +212,7 @@ const start = (app: ServerAPI) => {
               value: {
                 state: 'alert',
                 method: ['visual', 'sound'],
-                message: `Windlass automatically stopped after ${props.timeoutSeconds} seconds`,
+                message: `Windlass automatically stopped after ${props.timeoutSeconds} seconds`
               }
             }
           ]
@@ -223,7 +220,7 @@ const start = (app: ServerAPI) => {
       ]
     }
     app.handleMessage(plugin.id, timeoutNotification)
-    
+
     // Set timer to reset notification to normal after 10 seconds
     clearNotificationResetTimer()
     app.debug('Setting timer to reset notification in 10 seconds')
@@ -237,7 +234,7 @@ const start = (app: ServerAPI) => {
                 path: 'notifications.windlass.timeout' as Path,
                 value: {
                   state: 'normal',
-                  message: 'Windlass timeout cleared',
+                  message: 'Windlass timeout cleared'
                 }
               }
             ]
@@ -379,7 +376,7 @@ const start = (app: ServerAPI) => {
                   }
                 ]
               })
-            
+
               return completed
             } else {
               app.debug(`Invalid chain reset command: ${value}`)
