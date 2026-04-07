@@ -5,18 +5,13 @@ A Signal K server plugin that provides safe control of an electric windlass (anc
 ## Features
 
 - **Dual Relay Control**: Controls windlass up/down operation using separate relays
-- **Safety Timeout**: Configurable automatic shutoff to prevent motor damage from extended operation
+- **Safety Timeout**: Configurable automatic shutoff in case of network/swithing failure
 - **Direction Switch Delay**: Prevents rapid direction changes that could damage windlass
 - **Chain Counter**: Automatic tracking of chain deployment based on operation time and configurable rate
 - **External Control Integration**: Monitor external windlass controls with automatic state and chain tracking
-- **Smart State Management**: Unified windlass state with external control taking precedence
 - **Real-time Status**: Live monitoring of windlass state based on relay and external control feedback
 - **Notification System**: Alert notifications when safety timeout is triggered
 - **PUT Handler**: Control windlass through Signal K PUT requests
-
-## Configuration
-
-The plugin requires configuration of three main parameters:
 
 ### Settings
 
@@ -27,7 +22,7 @@ The plugin requires configuration of three main parameters:
 - **Direction Switch Delay**: Minimum delay when switching between up and down directions in seconds (default: 2, range: 0-30, 0 = disabled)
 - **Chain Rate**: Rate at which chain is deployed/retrieved in feet per minute (default: 60, range: 0-500, 0 = disable chain counter)
 - **Chain Counter Path**: Signal K path for chain out counter in feet (default: `navigation.anchor.chainOut`)
-- **Chain Counter Reset Path**: Signal K path for chain counter reset command (default: `navigation.anchor.chainOut.reset`)
+- **Chain Counter Reset Path**: Signal K path for chain counter reset command (default: `electrical.windlass.chainCounterReset.state`)
 - **External Up Path**: Optional Signal K path for external windlass up control monitoring (used for chain counter tracking and state reporting)
 - **External Down Path**: Optional Signal K path for external windlass down control monitoring (used for chain counter tracking and state reporting)
 
@@ -37,10 +32,9 @@ The plugin requires configuration of three main parameters:
 
 The windlass can be controlled through several methods:
 
-1. **Signal K Web Interface**: Use the controls in the web interface
-2. **PUT Requests**: Send HTTP PUT requests to the windlass path
-3. **WebSocket**: Send delta messages via WebSocket
-4. **Node-RED**: Use Signal K nodes in Node-RED flows
+1. **PUT Requests**: Send HTTP PUT requests to the windlass path
+2. **WebSocket**: Send delta messages via WebSocket
+3. **Node-RED**: Use Signal K nodes in Node-RED flows
 
 ### Control Values
 
@@ -55,7 +49,7 @@ The chain counter can be reset to zero using a PUT request:
 ```bash
 curl -X PUT -H "Content-Type: application/json" \\
   -d '{"value": true}' \\
-  http://your-signalk-server:3000/signalk/v1/api/vessels/self/navigation/anchor/chainOut/reset
+  http://your-signalk-server:3000/signalk/v1/api/vessels/self/navigation/anchor/chainCounterReset/state
 ```
 
 ### External Control Monitoring
@@ -78,13 +72,6 @@ This feature is useful when:
 - You want unified windlass state reporting regardless of which system is controlling the windlass
 - You're integrating with existing windlass control systems while adding chain tracking and state monitoring
 
-**Example Configuration:**
-```json
-{
-  "externalUpPath": "propulsion.windlass.up",
-  "externalDownPath": "propulsion.windlass.down"
-}
-```
 
 **State Priority Logic:**
 - If external up control is active → windlass state path shows "up"
@@ -92,13 +79,6 @@ This feature is useful when:
 - If external control is off but relay up is active → windlass state path shows "up"
 - If external control is off but relay down is active → windlass state path shows "down"
 - If both external and relay controls are off → windlass state path shows "off"
-
-```bash
-curl -X PUT \
-  http://localhost:3000/signalk/v1/api/vessels/self/navigation/anchor/chainOut/reset \
-  -H 'Content-Type: application/json' \
-  -d '{"value": true}'
-```
 
 ### PUT Request Example
 
@@ -113,13 +93,12 @@ curl -X PUT \
 
 ### Automatic Timeout Protection
 
-The plugin includes configurable timeout protection to prevent windlass motor damage:
+The plugin includes configurable timeout protection:
 
 - **Configurable Duration**: Set maximum run time (0-300 seconds)
 - **Automatic Shutoff**: Both relays automatically deactivated when timeout reached
 - **Visual/Audio Alerts**: Notifications sent through Signal K alert system
 - **Auto-Clear Alerts**: Timeout notifications automatically reset to normal after 10 seconds
-- **Debug Logging**: Timeout events logged for troubleshooting
 
 ### Direction Switch Delay Protection
 
