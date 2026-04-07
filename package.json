@@ -1,0 +1,48 @@
+{
+  "name": "signalk-relay-windlass",
+  "version": "1.0.0",
+  "description": "Signal K Plugin to control a windlass using two relay switches",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "mocha --require ts-node/register",
+    "prettier": "prettier --write .",
+    "lint": "eslint --fix --format compact .",
+    "ci-lint": "eslint && prettier --check .",
+    "ci-test": "npm run build && npm run build:web && npm run test && npm run ci-lint",
+    "format": "npm run prettier && npm run lint",
+    "build": "tsc",
+    "watch": "npm run build -- -w"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-hardware"
+  ],
+  "author": "scott@scottbender.net",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "node-hid": "^3.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbender9/signalk-shelly2"
+  },
+  "devDependencies": {
+    "@signalk/server-api": "^2.7.2",
+    "@tsconfig/node20": "^20.1.6",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.4",
+    "chai": "^5.2.1",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-formatter-compact": "^8.40.0",
+    "file-loader": "^6.1.1",
+    "mocha": "^11.7.1",
+    "prettier": "^3.6.2",
+    "style-loader": "^2.0.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.40.0"
+  }
+}
