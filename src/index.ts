@@ -56,6 +56,11 @@ const start = (app: ServerAPI) => {
   let lastChainUpdate: number = Date.now() // Last time chain counter was updated
   let chainCounterUpdateTimer: NodeJS.Timeout | null = null // Timer for continuous chain counter updates
   let notificationResetTimer: NodeJS.Timeout | null = null // Timer for resetting timeout notification
+  
+  // External control state tracking for chain counter
+  let externalUpState = false
+  let externalDownState = false
+  let externalCurrentState: WindlassState = WindlassState.Off
 
   function clearTimeoutTimer() {
     if (timeoutTimer) {
@@ -96,8 +101,12 @@ const start = (app: ServerAPI) => {
     app.debug('Starting chain counter continuous updates every 1 second')
 
     chainCounterUpdateTimer = setInterval(() => {
-      // Update chain counter based on current state
-      updateChainCounter(currentState, currentState)
+      // Update chain counter based on the appropriate active state
+      // Priority: external control takes precedence if any external path is active
+      const externalActive = externalCurrentState !== WindlassState.Off
+      const activeState = externalActive ? externalCurrentState : currentState
+      
+      updateChainCounter(activeState, activeState)
       // Send current chain counter value
       sendChainCounterUpdate()
     }, updateInterval)
@@ -246,6 +255,50 @@ const start = (app: ServerAPI) => {
     }, 10000)
   }
 
+  function updateExternalWindlassState() {
+    if (!started) return
+
+    // Only track external state for chain counter if enabled
+    if (!props.chainRateFeetPerMinute || props.chainRateFeetPerMinute <= 0) {
+      return
+    }
+
+    let newExternalState: WindlassState
+    if (externalUpState && !externalDownState) {
+      newExternalState = WindlassState.Up
+    } else if (!externalUpState && externalDownState) {
+      newExternalState = WindlassState.Down
+    } else {
+      newExternalState = WindlassState.Off
+    }
+
+    // Handle external windlass state change for chain counter
+    if (newExternalState !== externalCurrentState) {
+      app.debug(
+        `External windlass state changing: ${externalCurrentState} -> ${newExternalState} (up: ${externalUpState}, down: ${externalDownState})`
+      )
+
+      // Update chain counter based on previous external state
+      updateChainCounter(newExternalState, externalCurrentState)
+
+      // Manage chain counter timer based on external state
+      // External control takes precedence over relay control for continuous updates
+      if (newExternalState === WindlassState.Up || newExternalState === WindlassState.Down) {
+        startChainCounterContinuousUpdates()
+      } else {
+        // Only stop if relay control is also off
+        if (currentState === WindlassState.Off) {
+          stopChainCounterContinuousUpdates()
+        }
+      }
+
+      externalCurrentState = newExternalState
+      
+      // Update overall windlass state (external takes precedence)
+      updateOverallWindlassState()
+    }
+  }
+
   function updateWindlassState() {
     if (!started) return
 
@@ -270,10 +323,14 @@ const start = (app: ServerAPI) => {
       clearTimeoutTimer()
 
       // Manage chain counter timer based on state
+      // Only stop continuous updates if both relay and external control are off
       if (newState === WindlassState.Up || newState === WindlassState.Down) {
         startChainCounterContinuousUpdates()
       } else {
-        stopChainCounterContinuousUpdates()
+        // Only stop if external control is also off
+        if (externalCurrentState === WindlassState.Off) {
+          stopChainCounterContinuousUpdates()
+        }
       }
 
       // Start timeout timer for active states
@@ -288,7 +345,9 @@ const start = (app: ServerAPI) => {
       }
 
       currentState = newState
-      sendState(newState)
+      
+      // Update overall windlass state (external takes precedence if active)
+      updateOverallWindlassState()
     }
   }
 
@@ -305,22 +364,43 @@ const start = (app: ServerAPI) => {
       app.debug(`  chainRateFeetPerMinute: ${props.chainRateFeetPerMinute}`)
       app.debug(`  chainCounterPath: ${props.chainCounterPath}`)
       app.debug(`  chainCounterResetPath: ${props.chainCounterResetPath}`)
+      app.debug(`  externalUpPath: ${props.externalUpPath}`)
+      app.debug(`  externalDownPath: ${props.externalDownPath}`)
 
       // Initialize chain counter
       lastChainUpdate = Date.now()
 
+      const subscriptionPaths: any[] = [
+        {
+          path: props.upRelayPath,
+          period: 100
+        },
+        {
+          path: props.downRelayPath,
+          period: 100
+        }
+      ]
+      
+      // Add external control paths if configured
+      if (props.externalUpPath && props.chainRateFeetPerMinute > 0) {
+        subscriptionPaths.push({
+          path: props.externalUpPath,
+          period: 100
+        })
+        app.debug(`Added external up path subscription: ${props.externalUpPath}`)
+      }
+      
+      if (props.externalDownPath && props.chainRateFeetPerMinute > 0) {
+        subscriptionPaths.push({
+          path: props.externalDownPath,
+          period: 100
+        })
+        app.debug(`Added external down path subscription: ${props.externalDownPath}`)
+      }
+      
       const subscriptionOptions = {
         context: 'vessels.self' as Context,
-        subscribe: [
-          {
-            path: props.upRelayPath,
-            period: 100
-          },
-          {
-            path: props.downRelayPath,
-            period: 100
-          }
-        ]
+        subscribe: subscriptionPaths
       }
 
       app.debug('Setting up subscriptions for relay monitoring')
@@ -345,6 +425,18 @@ const start = (app: ServerAPI) => {
                 )
                 downRelayState = Boolean(value.value)
                 updateWindlassState()
+              } else if (value.path === props.externalUpPath) {
+                app.debug(
+                  `External up control changed: ${externalUpState} -> ${Boolean(value.value)}`
+                )
+                externalUpState = Boolean(value.value)
+                updateExternalWindlassState()
+              } else if (value.path === props.externalDownPath) {
+                app.debug(
+                  `External down control changed: ${externalDownState} -> ${Boolean(value.value)}`
+                )
+                externalDownState = Boolean(value.value)
+                updateExternalWindlassState()
               }
             })
           })
@@ -547,7 +639,7 @@ const start = (app: ServerAPI) => {
           title: 'Direction Switch Delay (seconds)',
           description:
             'Delay when switching between up and down directions (0 = no delay)',
-          default: 5
+          default: 1
         },
         chainRateFeetPerMinute: {
           type: 'number',
@@ -567,6 +659,16 @@ const start = (app: ServerAPI) => {
           title: 'Chain Counter Reset Path',
           description: 'Signal K path for chain counter reset command',
           default: 'electrical.windlass.chainCounterReset.state'
+        },
+        externalUpPath: {
+          type: 'string',
+          title: 'External Up Control Path (Optional)',
+          description: 'Signal K path for external windlass up control - used for chain counter tracking only'
+        },
+        externalDownPath: {
+          type: 'string',
+          title: 'External Down Control Path (Optional)',
+          description: 'Signal K path for external windlass down control - used for chain counter tracking only'
         }
       }
     }
@@ -604,6 +706,17 @@ const start = (app: ServerAPI) => {
         }
       ]
     })
+  }
+
+  // Determine and send the current overall windlass state
+  // External control takes precedence over relay control
+  function updateOverallWindlassState() {
+    if (!started) return
+    
+    // External control takes precedence
+    const overallState = externalCurrentState !== WindlassState.Off ? externalCurrentState : currentState
+    app.debug(`Overall windlass state: ${overallState} (external: ${externalCurrentState}, relay: ${currentState})`)
+    sendState(overallState)
   }
 
   function setWindlassUp(cb: any) {

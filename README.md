@@ -8,7 +8,9 @@ A Signal K server plugin that provides safe control of an electric windlass (anc
 - **Safety Timeout**: Configurable automatic shutoff to prevent motor damage from extended operation
 - **Direction Switch Delay**: Prevents rapid direction changes that could damage windlass
 - **Chain Counter**: Automatic tracking of chain deployment based on operation time and configurable rate
-- **Real-time Status**: Live monitoring of windlass state based on relay feedback
+- **External Control Integration**: Monitor external windlass controls with automatic state and chain tracking
+- **Smart State Management**: Unified windlass state with external control taking precedence
+- **Real-time Status**: Live monitoring of windlass state based on relay and external control feedback
 - **Notification System**: Alert notifications when safety timeout is triggered
 - **PUT Handler**: Control windlass through Signal K PUT requests
 
@@ -26,6 +28,8 @@ The plugin requires configuration of three main parameters:
 - **Chain Rate**: Rate at which chain is deployed/retrieved in feet per minute (default: 60, range: 0-500, 0 = disable chain counter)
 - **Chain Counter Path**: Signal K path for chain out counter in feet (default: `navigation.anchor.chainOut`)
 - **Chain Counter Reset Path**: Signal K path for chain counter reset command (default: `navigation.anchor.chainOut.reset`)
+- **External Up Path**: Optional Signal K path for external windlass up control monitoring (used for chain counter tracking and state reporting)
+- **External Down Path**: Optional Signal K path for external windlass down control monitoring (used for chain counter tracking and state reporting)
 
 ## Usage
 
@@ -47,6 +51,47 @@ The windlass can be controlled through several methods:
 ### Chain Counter Reset
 
 The chain counter can be reset to zero using a PUT request:
+
+```bash
+curl -X PUT -H "Content-Type: application/json" \\
+  -d '{"value": true}' \\
+  http://your-signalk-server:3000/signalk/v1/api/vessels/self/navigation/anchor/chainOut/reset
+```
+
+### External Control Monitoring
+
+The plugin can monitor external windlass controls (such as NMEA 2000 data or other control systems) for both chain counter tracking and windlass state reporting. When external control paths are configured:
+
+- The plugin subscribes to the specified external control paths
+- Chain counter tracking works with both internal relay control and external control
+- **Windlass state path updates**: The configured windlass state path will reflect external control states
+- External control takes precedence over relay control for both chain counter and state reporting
+- When external control is active, the windlass state path shows the external state
+- When external control is inactive, the windlass state path shows the relay state
+- External control does not affect the relay-based windlass PUT handler operations
+- External control is only active when chain counter is enabled (chain rate > 0)
+
+This feature is useful when:
+- Your windlass is controlled by multiple systems (relay plugin + external system)
+- You want to track chain deployment from NMEA 2000 windlass data
+- You need chain counter tracking even when the windlass is operated manually or by other systems
+- You want unified windlass state reporting regardless of which system is controlling the windlass
+- You're integrating with existing windlass control systems while adding chain tracking and state monitoring
+
+**Example Configuration:**
+```json
+{
+  "externalUpPath": "propulsion.windlass.up",
+  "externalDownPath": "propulsion.windlass.down"
+}
+```
+
+**State Priority Logic:**
+- If external up control is active → windlass state path shows "up"
+- If external down control is active → windlass state path shows "down"  
+- If external control is off but relay up is active → windlass state path shows "up"
+- If external control is off but relay down is active → windlass state path shows "down"
+- If both external and relay controls are off → windlass state path shows "off"
 
 ```bash
 curl -X PUT \
