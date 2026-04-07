@@ -52,6 +52,9 @@ const start = (app: ServerAPI) => {
   let downRelayState = false
   let currentState: WindlassState = WindlassState.Off
   let timeoutTimer: NodeJS.Timeout | null = null
+  let chainOut: number = 0 // Chain out in feet
+  let lastChainUpdate: number = Date.now() // Last time chain counter was updated
+  let chainCounterUpdateTimer: NodeJS.Timeout | null = null // Timer for continuous chain counter updates
 
   function clearTimeoutTimer() {
     if (timeoutTimer) {
@@ -59,6 +62,129 @@ const start = (app: ServerAPI) => {
       clearTimeout(timeoutTimer)
       timeoutTimer = null
     }
+  }
+
+  function clearChainCounterUpdateTimer() {
+    if (chainCounterUpdateTimer) {
+      app.debug('Clearing chain counter update timer')
+      clearTimeout(chainCounterUpdateTimer)
+      chainCounterUpdateTimer = null
+    }
+  }
+
+  function startChainCounterContinuousUpdates() {
+    // Only start continuous updates if chain counter is enabled
+    if (
+      !props.chainRateFeetPerMinute ||
+      props.chainRateFeetPerMinute <= 0
+    ) {
+      return
+    }
+
+    // Don't start timer if already running
+    if (chainCounterUpdateTimer) {
+      return
+    }
+    
+    const updateInterval = 1000 // Fixed 1 second interval
+    app.debug('Starting chain counter continuous updates every 1 second')
+    
+    chainCounterUpdateTimer = setInterval(() => {
+      // Update chain counter based on current state
+      updateChainCounter(currentState, currentState)
+      // Send current chain counter value
+      sendChainCounterUpdate()
+    }, updateInterval)
+  }
+
+  function stopChainCounterContinuousUpdates() {
+    if (chainCounterUpdateTimer) {
+      app.debug('Stopping chain counter continuous updates')
+      clearChainCounterUpdateTimer()
+    }
+  }
+
+  function sendChainCounterUpdate() {
+    if (!props.chainCounterPath) return
+
+    app.handleMessage(plugin.id, {
+      updates: [
+        {
+          values: [
+            {
+              path: props.chainCounterPath as Path,
+              value: chainOut * 0.3048 // Convert feet to meters
+            }
+          ]
+        }
+      ]
+    })
+  }
+
+  function updateChainCounter(
+    newState: WindlassState,
+    oldState: WindlassState
+  ) {
+    if (!props.chainRateFeetPerMinute || props.chainRateFeetPerMinute <= 0) {
+      return // Chain counter disabled
+    }
+
+    const now = Date.now()
+
+    // Calculate time since last update
+    const deltaTime = (now - lastChainUpdate) / 1000 / 60 // Convert to minutes
+    lastChainUpdate = now
+
+    // Calculate chain movement based on old state
+    let chainMovement = 0
+    if (oldState === WindlassState.Up) {
+      // Chain coming in (up) - negative movement
+      chainMovement = -(deltaTime * props.chainRateFeetPerMinute)
+    } else if (oldState === WindlassState.Down) {
+      // Chain going out (down) - positive movement
+      chainMovement = deltaTime * props.chainRateFeetPerMinute
+    }
+
+    // Update chain counter
+    chainOut += chainMovement
+    // Ensure chain out doesn't go negative
+    chainOut = Math.max(0, chainOut)
+
+    if (Math.abs(chainMovement) > 0.001) {
+      // Only log significant changes
+      app.debug(
+        `Chain counter updated: ${chainMovement.toFixed(2)}ft movement, total out: ${chainOut.toFixed(2)}ft`
+      )
+    }
+
+    // Send chain counter update to Signal K
+    sendChainCounter()
+
+    // Also send via continuous update if configured
+    sendChainCounterUpdate()
+  }
+
+  function sendChainCounter() {
+    if (!props.chainCounterPath) return
+
+    app.handleMessage(plugin.id, {
+      updates: [
+        {
+          values: [
+            {
+              path: props.chainCounterPath as Path,
+              value: chainOut * 0.3048
+            }
+          ]
+        }
+      ]
+    })
+  }
+
+  function resetChainCounter() {
+    app.debug('Resetting chain counter to 0')
+    chainOut = 0
+    sendChainCounter()
   }
 
   function forceWindlassOff() {
@@ -108,7 +234,18 @@ const start = (app: ServerAPI) => {
       app.debug(
         `Windlass state changing: ${currentState} -> ${newState} (up: ${upRelayState}, down: ${downRelayState})`
       )
+
+      // Update chain counter based on previous state
+      updateChainCounter(newState, currentState)
+
       clearTimeoutTimer()
+
+      // Manage chain counter timer based on state
+      if (newState === WindlassState.Up || newState === WindlassState.Down) {
+        startChainCounterContinuousUpdates()
+      } else {
+        stopChainCounterContinuousUpdates()
+      }
 
       // Start timeout timer for active states
       if (
@@ -136,6 +273,12 @@ const start = (app: ServerAPI) => {
       app.debug(`  upRelayPath: ${props.upRelayPath}`)
       app.debug(`  downRelayPath: ${props.downRelayPath}`)
       app.debug(`  timeoutSeconds: ${props.timeoutSeconds}`)
+      app.debug(`  chainRateFeetPerMinute: ${props.chainRateFeetPerMinute}`)
+      app.debug(`  chainCounterPath: ${props.chainCounterPath}`)
+      app.debug(`  chainCounterResetPath: ${props.chainCounterResetPath}`)
+
+      // Initialize chain counter
+      lastChainUpdate = Date.now()
 
       const subscriptionOptions = {
         context: 'vessels.self' as Context,
@@ -178,6 +321,29 @@ const start = (app: ServerAPI) => {
           })
         }
       )
+
+      // Register PUT handler for chain counter reset (if enabled)
+      if (props.chainRateFeetPerMinute > 0 && props.chainCounterResetPath) {
+        app.debug('Registering PUT handler for chain counter reset')
+        app.registerPutHandler(
+          'vessels.self',
+          props.chainCounterResetPath,
+          (context: string, path: string, value: any, cb: any) => {
+            app.debug(
+              `Chain counter reset request received: ${path} = ${value}`
+            )
+            if (value === true || value === 1) {
+              resetChainCounter()
+              cb(completed)
+              ;(app as any).putSelfPath(props.chainCounterResetPath, false) // Reset the reset command back to false
+              return completed
+            } else {
+              app.debug(`Invalid chain reset command: ${value}`)
+              return error
+            }
+          }
+        )
+      }
 
       app.debug('Registering PUT handler for windlass control')
       app.registerPutHandler(
@@ -233,7 +399,60 @@ const start = (app: ServerAPI) => {
         ]
       })
 
+      // Add chain counter metadata if enabled
+      if (props.chainRateFeetPerMinute > 0 && props.chainCounterPath) {
+        const metaEntries = [
+          {
+            path: props.chainCounterPath as Path,
+            value: {
+              displayName: 'Chain Out',
+              description: 'Length of chain deployed in meters',
+              units: 'm'
+            } as MetaValue
+          }
+        ]
+
+        // Add reset path metadata if configured
+        if (props.chainCounterResetPath) {
+          metaEntries.push({
+            path: props.chainCounterResetPath as Path,
+            value: {
+              displayName: 'Reset Chain Counter',
+              description: 'Reset chain counter to zero',
+              units: 'bool'
+            } as MetaValue
+          })
+        }
+
+        app.handleMessage(plugin.id, {
+          updates: [
+            {
+              meta: metaEntries
+            }
+          ]
+        })
+      }
+
       sendState(WindlassState.Off)
+
+      // Send initial chain counter value
+      if (props.chainRateFeetPerMinute > 0 && props.chainCounterPath) {
+        sendChainCounter()
+
+        app.handleMessage(plugin.id, {
+          updates: [
+            {
+              values: [
+                {
+                  path: props.chainCounterResetPath as Path,
+                  value: false
+                }
+              ]
+            }
+          ]
+        })
+      }
+
       app.debug('Windlass plugin started successfully')
     },
 
@@ -241,6 +460,7 @@ const start = (app: ServerAPI) => {
       app.debug('Stopping windlass plugin')
       started = false
       clearTimeoutTimer()
+      clearChainCounterUpdateTimer()
       onStop.forEach((f: any) => f())
       onStop = []
       app.debug('Windlass plugin stopped')
@@ -286,6 +506,25 @@ const start = (app: ServerAPI) => {
           description:
             'Delay when switching between up and down directions (0 = no delay)',
           default: 5
+        },
+        chainRateFeetPerMinute: {
+          type: 'number',
+          title: 'Chain Rate (feet per minute)',
+          description:
+            'Rate at which chain is deployed/retrieved in feet per minute (0 = disable chain counter)',
+          default: 60
+        },
+        chainCounterPath: {
+          type: 'string',
+          title: 'Chain Counter Path',
+          description: 'Signal K path for chain out counter in feet',
+          default: 'electrical.windlass.chainOut'
+        },
+        chainCounterResetPath: {
+          type: 'string',
+          title: 'Chain Counter Reset Path',
+          description: 'Signal K path for chain counter reset command',
+          default: 'electrical.windlass.chainCounterReset'
         }
       }
     }
