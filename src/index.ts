@@ -531,6 +531,20 @@ const start = (app: ServerAPI) => {
                       title: 'Down',
                       value: 'down'
                     }
+                  ],
+                  enum: [
+                    {
+                      displayName: 'Up',
+                      value: 'up'
+                    },
+                    {
+                      displayName: 'Off',
+                      value: 'off'
+                    },
+                    {
+                      displayName: 'Down',
+                      value: 'down'
+                    }
                   ]
                 } as MetaValue
               }
