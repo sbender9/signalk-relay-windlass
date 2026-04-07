@@ -73,6 +73,7 @@ The plugin includes configurable timeout protection to prevent windlass motor da
 - **Configurable Duration**: Set maximum run time (0-300 seconds)
 - **Automatic Shutoff**: Both relays automatically deactivated when timeout reached
 - **Visual/Audio Alerts**: Notifications sent through Signal K alert system
+- **Auto-Clear Alerts**: Timeout notifications automatically reset to normal after 10 seconds
 - **Debug Logging**: Timeout events logged for troubleshooting
 
 ### Direction Switch Delay Protection

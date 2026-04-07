@@ -55,6 +55,7 @@ const start = (app: ServerAPI) => {
   let chainOut: number = 0 // Chain out in feet
   let lastChainUpdate: number = Date.now() // Last time chain counter was updated
   let chainCounterUpdateTimer: NodeJS.Timeout | null = null // Timer for continuous chain counter updates
+  let notificationResetTimer: NodeJS.Timeout | null = null // Timer for resetting timeout notification
 
   function clearTimeoutTimer() {
     if (timeoutTimer) {
@@ -69,6 +70,14 @@ const start = (app: ServerAPI) => {
       app.debug('Clearing chain counter update timer')
       clearTimeout(chainCounterUpdateTimer)
       chainCounterUpdateTimer = null
+    }
+  }
+
+  function clearNotificationResetTimer() {
+    if (notificationResetTimer) {
+      app.debug('Clearing notification reset timer')
+      clearTimeout(notificationResetTimer)
+      notificationResetTimer = null
     }
   }
 
@@ -207,7 +216,6 @@ const start = (app: ServerAPI) => {
                 state: 'alert',
                 method: ['visual', 'sound'],
                 message: `Windlass automatically stopped after ${props.timeoutSeconds} seconds`,
-                timestamp: new Date().toISOString()
               }
             }
           ]
@@ -215,6 +223,30 @@ const start = (app: ServerAPI) => {
       ]
     }
     app.handleMessage(plugin.id, timeoutNotification)
+    
+    // Set timer to reset notification to normal after 10 seconds
+    clearNotificationResetTimer()
+    app.debug('Setting timer to reset notification in 10 seconds')
+    notificationResetTimer = setTimeout(() => {
+      app.debug('Resetting windlass timeout notification to normal')
+      const normalNotification = {
+        updates: [
+          {
+            values: [
+              {
+                path: 'notifications.windlass.timeout' as Path,
+                value: {
+                  state: 'normal',
+                  message: 'Windlass timeout cleared',
+                }
+              }
+            ]
+          }
+        ]
+      }
+      app.handleMessage(plugin.id, normalNotification)
+      notificationResetTimer = null
+    }, 10000)
   }
 
   function updateWindlassState() {
@@ -473,6 +505,7 @@ const start = (app: ServerAPI) => {
       started = false
       clearTimeoutTimer()
       clearChainCounterUpdateTimer()
+      clearNotificationResetTimer()
       onStop.forEach((f: any) => f())
       onStop = []
       app.debug('Windlass plugin stopped')
