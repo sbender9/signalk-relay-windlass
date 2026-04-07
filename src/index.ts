@@ -15,7 +15,14 @@
 
 /// <reference types="node" />
 
-import { ServerAPI, Plugin, Path, ActionResult } from '@signalk/server-api'
+import {
+  ServerAPI,
+  Plugin,
+  Path,
+  ActionResult,
+  Context,
+  MetaValue
+} from '@signalk/server-api'
 
 enum WindlassState {
   Up = 'up',
@@ -37,11 +44,10 @@ const pending: ActionResult = {
   state: 'PENDING'
 }
 
-const start = (app: any) => {
+const start = (app: ServerAPI) => {
   let props: any
   let onStop: any = []
   let started = false
-  let restartPlugin: any = null
   let upRelayState = false
   let downRelayState = false
   let currentState: WindlassState = WindlassState.Off
@@ -61,8 +67,8 @@ const start = (app: any) => {
 
     // Turn off both relays
     app.debug('Forcing relay states: up=false, down=false')
-    app.putSelfPath(props.upRelayPath, false)
-    app.putSelfPath(props.downRelayPath, false)
+    ;(app as any).putSelfPath(props.upRelayPath, false)
+    ;(app as any).putSelfPath(props.downRelayPath, false)
 
     // Send notification about timeout
     const timeoutNotification = {
@@ -70,7 +76,7 @@ const start = (app: any) => {
         {
           values: [
             {
-              path: 'notifications.windlass.timeout',
+              path: 'notifications.windlass.timeout' as Path,
               value: {
                 state: 'alert',
                 method: ['visual', 'sound'],
@@ -121,8 +127,7 @@ const start = (app: any) => {
   }
 
   const plugin: Plugin = {
-    start: (properties: any, restartPluginParam) => {
-      restartPlugin = restartPluginParam
+    start: (properties: any, _restartPluginParam) => {
       props = properties
       started = true
 
@@ -133,7 +138,7 @@ const start = (app: any) => {
       app.debug(`  timeoutSeconds: ${props.timeoutSeconds}`)
 
       const subscriptionOptions = {
-        context: 'vessels.self',
+        context: 'vessels.self' as Context,
         subscribe: [
           {
             path: props.upRelayPath,
@@ -147,7 +152,7 @@ const start = (app: any) => {
       }
 
       app.debug('Setting up subscriptions for relay monitoring')
-      const subscription = app.subscriptionmanager.subscribe(
+      app.subscriptionmanager.subscribe(
         subscriptionOptions,
         onStop,
         (error: any) => {
@@ -221,7 +226,7 @@ const start = (app: any) => {
                       value: 'down'
                     }
                   ]
-                }
+                } as MetaValue
               }
             ]
           }
@@ -322,24 +327,35 @@ const start = (app: any) => {
 
   function setWindlassUp(cb: any) {
     app.debug('Executing windlass UP: turning off down relay first')
-    app.putSelfPath(props.downRelayPath, false, (reply: any) => {
+    ;(app as any).putSelfPath(props.downRelayPath, false, (reply: any) => {
       if (reply.state === 'COMPLETED') {
         if (reply.statusCode === 200) {
           app.debug('Down relay turned off, now turning on up relay')
-          setTimeout(() => {
-            app.putSelfPath(props.upRelayPath, true, (reply: any) => {
-              if (reply.state === 'COMPLETED') {
-                if (reply.statusCode === 200) {
-                  app.debug('Up relay activated successfully')
-                  sendState(WindlassState.Up)
-                  cb(completed)
-                } else {
-                  app.debug(`Up relay activation failed: ${reply.statusCode}`)
-                  cb({ ...error, message: reply.message })
+          setTimeout(
+            () => {
+              ;(app as any).putSelfPath(
+                props.upRelayPath,
+                true,
+                (reply: any) => {
+                  if (reply.state === 'COMPLETED') {
+                    if (reply.statusCode === 200) {
+                      app.debug('Up relay activated successfully')
+                      sendState(WindlassState.Up)
+                      cb(completed)
+                    } else {
+                      app.debug(
+                        `Up relay activation failed: ${reply.statusCode}`
+                      )
+                      cb({ ...error, message: reply.message })
+                    }
+                  }
                 }
-              }
-            })
-          }, currentState === WindlassState.Down ? props.switchingDelaySeconds * 1000 : 0)
+              )
+            },
+            currentState === WindlassState.Down
+              ? props.switchingDelaySeconds * 1000
+              : 0
+          )
         } else {
           app.debug(`Up relay PUT failed: ${reply.statusCode}`)
           cb({ ...error, message: reply.message })
@@ -350,24 +366,35 @@ const start = (app: any) => {
 
   function setWindlassDown(cb: any) {
     app.debug('Executing windlass DOWN: turning off up relay first')
-    app.putSelfPath(props.upRelayPath, false, (reply: any) => {
+    ;(app as any).putSelfPath(props.upRelayPath, false, (reply: any) => {
       if (reply.state === 'COMPLETED') {
         if (reply.statusCode === 200) {
           app.debug('Up relay turned off, now turning on down relay')
-          setTimeout(() => {
-            app.putSelfPath(props.downRelayPath, true, (reply: any) => {
-              if (reply.state === 'COMPLETED') {
-                if (reply.statusCode === 200) {
-                  app.debug('Down relay activated successfully')
-                  sendState(WindlassState.Down)
-                  cb(completed)
-                } else {
-                  app.debug(`Down relay activation failed: ${reply.statusCode}`)
-                  cb({ ...error, message: reply.message })
+          setTimeout(
+            () => {
+              ;(app as any).putSelfPath(
+                props.downRelayPath,
+                true,
+                (reply: any) => {
+                  if (reply.state === 'COMPLETED') {
+                    if (reply.statusCode === 200) {
+                      app.debug('Down relay activated successfully')
+                      sendState(WindlassState.Down)
+                      cb(completed)
+                    } else {
+                      app.debug(
+                        `Down relay activation failed: ${reply.statusCode}`
+                      )
+                      cb({ ...error, message: reply.message })
+                    }
+                  }
                 }
-              }
-            })
-          }, currentState === WindlassState.Up ? props.switchingDelaySeconds * 1000 : 0)
+              )
+            },
+            currentState === WindlassState.Up
+              ? props.switchingDelaySeconds * 1000
+              : 0
+          )
         } else {
           app.debug(`Up relay deactivation failed: ${reply.statusCode}`)
           cb({ ...error, message: reply.message })
@@ -378,7 +405,7 @@ const start = (app: any) => {
 
   function setWindlassOff(cb: any) {
     app.debug('Executing windlass OFF: turning off both relays')
-    app.putSelfPath(props.upRelayPath, false, (reply: any) => {
+    ;(app as any).putSelfPath(props.upRelayPath, false, (reply: any) => {
       if (reply.state === 'COMPLETED') {
         if (reply.statusCode !== 200) {
           app.debug(`Up relay deactivation failed: ${reply.statusCode}`)
@@ -386,7 +413,7 @@ const start = (app: any) => {
           return
         }
         app.debug('Up relay turned off, now turning off down relay')
-        app.putSelfPath(props.downRelayPath, false, (reply: any) => {
+        ;(app as any).putSelfPath(props.downRelayPath, false, (reply: any) => {
           if (reply.state === 'COMPLETED') {
             if (reply.statusCode === 200) {
               app.debug('Both relays turned off successfully')
