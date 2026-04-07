@@ -17,10 +17,10 @@ The plugin requires configuration of three main parameters:
 ### Settings
 
 - **Windlass State Path**: Signal K path for windlass control state (default: `electrical.windlass.control.state`)
-- **Up Relay Path**: Path to relay that controls windlass up operation (default: `electrical.windlass.up.state`)  
+- **Up Relay Path**: Path to relay that controls windlass up operation (default: `electrical.windlass.up.state`)
 - **Down Relay Path**: Path to relay that controls windlass down operation (default: `electrical.windlass.down.state`)
 - **Safety Timeout**: Maximum continuous operation time in seconds (default: 30, range: 0-300, 0 = disabled)
-
+- **Direction Switch Delay**: Minimum delay when switching between up and down directions in seconds (default: 2, range: 0-30, 0 = disabled)
 
 ## Usage
 
@@ -36,7 +36,7 @@ The windlass can be controlled through several methods:
 ### Control Values
 
 - `"up"` - Raise the anchor (activates up relay, deactivates down relay)
-- `"down"` - Lower the anchor (activates down relay, deactivates up relay)  
+- `"down"` - Lower the anchor (activates down relay, deactivates up relay)
 - `"off"` - Stop operation (deactivates both relays)
 
 ### PUT Request Example
@@ -59,6 +59,15 @@ The plugin includes configurable timeout protection to prevent windlass motor da
 - **Visual/Audio Alerts**: Notifications sent through Signal K alert system
 - **Debug Logging**: Timeout events logged for troubleshooting
 
+### Direction Switch Delay Protection
+
+To prevent motor and gearbox damage from rapid direction changes:
+
+- **Configurable Delay**: Set minimum time between opposite direction commands (0-30 seconds)
+- **Smart Timing**: Only applies when switching from up→down or down→up
+- **Immediate Stop**: Off commands execute immediately for safety
+- **Queue Management**: Direction changes are delayed and automatically executed when safe
+
 ### State Monitoring
 
 - **Real-time Feedback**: Windlass state automatically updates based on relay positions
@@ -69,23 +78,22 @@ The plugin includes configurable timeout protection to prevent windlass motor da
 
 ### Output Paths
 
-| Path | Description | Values |
-|------|-------------|---------|
+| Path                                | Description            | Values                    |
+| ----------------------------------- | ---------------------- | ------------------------- |
 | `electrical.windlass.control.state` | Current windlass state | `"up"`, `"down"`, `"off"` |
 
 ### Input Paths (Monitored)
 
-| Path | Description | Values |
-|------|-------------|---------|
-| `electrical.windlass.up.state` | Up relay state | `true` (on) / `false` (off) |
+| Path                             | Description      | Values                      |
+| -------------------------------- | ---------------- | --------------------------- |
+| `electrical.windlass.up.state`   | Up relay state   | `true` (on) / `false` (off) |
 | `electrical.windlass.down.state` | Down relay state | `true` (on) / `false` (off) |
 
 ### Notification Paths
 
-| Path | Description |
-|------|-------------|
+| Path                             | Description                 |
+| -------------------------------- | --------------------------- |
 | `notifications.windlass.timeout` | Timeout alert notifications |
-```
 
 ## License
 
@@ -94,6 +102,7 @@ Licensed under the Apache License 2.0. See LICENSE file for details.
 ## Contributing
 
 Issues and pull requests welcome! Please ensure:
+
 - Code follows existing style (run `npm run format`)
 - Tests pass (`npm test`)
 - Documentation is updated for new features
@@ -101,4 +110,3 @@ Issues and pull requests welcome! Please ensure:
 ## Author
 
 Scott Bender <scott@scottbender.net>
-
