@@ -2,7 +2,7 @@
 
 A Signal K server plugin that provides safe control of an electric windlass (anchor winch) using two relay switches. This plugin allows you to raise and lower your anchor through Signal K while providing important safety features like automatic timeout protection.
 
-**Note that I have not yet tested this plugin with a real windless, only  by using node-red to simulate one**
+**Note that I have not yet tested this plugin with a real windless, only by using node-red to simulate one**
 
 ## Features
 
