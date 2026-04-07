@@ -14,7 +14,6 @@
  */
 
 import { ServerAPI, Plugin, Path, ActionResult } from '@signalk/server-api'
-import { send } from 'process'
 
 enum WindlassState {
   Up = 'up',
@@ -35,7 +34,6 @@ const completed: ActionResult = {
 const pending: ActionResult = {
   state: 'PENDING'
 }
-
 
 const start = (app: any) => {
   let props: any
@@ -58,25 +56,29 @@ const start = (app: any) => {
   function forceWindlassOff() {
     app.debug('Windlass timeout reached - forcing off')
     clearTimeoutTimer()
-    
+
     // Turn off both relays
     app.debug('Forcing relay states: up=false, down=false')
     app.putSelfPath(props.upRelayPath, false)
     app.putSelfPath(props.downRelayPath, false)
-    
+
     // Send notification about timeout
     const timeoutNotification = {
-      updates: [{
-        values: [{
-          path: 'notifications.windlass.timeout',
-          value: {
-            state: 'alert',
-            method: ['visual', 'sound'],
-            message: `Windlass automatically stopped after ${props.timeoutSeconds} seconds`,
-            timestamp: new Date().toISOString()
-          }
-        }]
-      }]
+      updates: [
+        {
+          values: [
+            {
+              path: 'notifications.windlass.timeout',
+              value: {
+                state: 'alert',
+                method: ['visual', 'sound'],
+                message: `Windlass automatically stopped after ${props.timeoutSeconds} seconds`,
+                timestamp: new Date().toISOString()
+              }
+            }
+          ]
+        }
+      ]
     }
     app.handleMessage(plugin.id, timeoutNotification)
   }
@@ -92,20 +94,25 @@ const start = (app: any) => {
     } else {
       newState = WindlassState.Off
     }
-    
+
     // Handle timeout logic
     if (newState !== currentState) {
-      app.debug(`Windlass state changing: ${currentState} -> ${newState} (up: ${upRelayState}, down: ${downRelayState})`)
+      app.debug(
+        `Windlass state changing: ${currentState} -> ${newState} (up: ${upRelayState}, down: ${downRelayState})`
+      )
       clearTimeoutTimer()
-      
+
       // Start timeout timer for active states
-      if ((newState === WindlassState.Up || newState === WindlassState.Down) && props.timeoutSeconds > 0) {
+      if (
+        (newState === WindlassState.Up || newState === WindlassState.Down) &&
+        props.timeoutSeconds > 0
+      ) {
         app.debug(`Starting timeout timer: ${props.timeoutSeconds} seconds`)
         timeoutTimer = setTimeout(() => {
           forceWindlassOff()
         }, props.timeoutSeconds * 1000)
       }
-      
+
       currentState = newState
       sendState(newState)
     }
@@ -116,7 +123,7 @@ const start = (app: any) => {
       restartPlugin = restartPluginParam
       props = properties
       started = true
-      
+
       app.debug('Starting windlass plugin with configuration:')
       app.debug(`  windlassPath: ${props.windlassPath}`)
       app.debug(`  upRelayPath: ${props.upRelayPath}`)
@@ -128,11 +135,11 @@ const start = (app: any) => {
         subscribe: [
           {
             path: props.upRelayPath,
-            period: 100,
+            period: 100
           },
           {
             path: props.downRelayPath,
-            period: 100,
+            period: 100
           }
         ]
       }
@@ -148,11 +155,15 @@ const start = (app: any) => {
           delta.updates?.forEach((update: any) => {
             update.values?.forEach((value: any) => {
               if (value.path === props.upRelayPath) {
-                app.debug(`Up relay state changed: ${upRelayState} -> ${Boolean(value.value)}`)
+                app.debug(
+                  `Up relay state changed: ${upRelayState} -> ${Boolean(value.value)}`
+                )
                 upRelayState = Boolean(value.value)
                 updateWindlassState()
               } else if (value.path === props.downRelayPath) {
-                app.debug(`Down relay state changed: ${downRelayState} -> ${Boolean(value.value)}`)
+                app.debug(
+                  `Down relay state changed: ${downRelayState} -> ${Boolean(value.value)}`
+                )
                 downRelayState = Boolean(value.value)
                 updateWindlassState()
               }
@@ -162,7 +173,9 @@ const start = (app: any) => {
       )
 
       app.debug('Registering PUT handler for windlass control')
-      app.registerPutHandler('vessels.self', props.windlassPath,  
+      app.registerPutHandler(
+        'vessels.self',
+        props.windlassPath,
         (context: string, path: string, value: any, cb: any) => {
           app.debug(`PUT request received: ${path} = ${value}`)
           if (value === WindlassState.Up) {
@@ -176,7 +189,7 @@ const start = (app: any) => {
           } else if (value === WindlassState.Off) {
             app.debug('Processing windlass OFF command')
             setWindlassOff(cb)
-            return pending 
+            return pending
           } else {
             app.debug(`Unknown windlass command: ${value}`)
             return error
@@ -187,26 +200,28 @@ const start = (app: any) => {
       app.handleMessage(plugin.id, {
         updates: [
           {
-            meta: [{
-              path: props.windlassPath as Path,
-              value: {
-                "displayName": "Windlass",
-                "possibleValues": [
-                  {
-                    "title": "Up",
-                    "value": "up"
-                  },
-                  {
-                    "title": "Off",
-                    "value": "off"
-                  },
-                  {
-                    "title": "Down",
-                    "value": "down"
-                  }
-                ]
+            meta: [
+              {
+                path: props.windlassPath as Path,
+                value: {
+                  displayName: 'Windlass',
+                  possibleValues: [
+                    {
+                      title: 'Up',
+                      value: 'up'
+                    },
+                    {
+                      title: 'Off',
+                      value: 'off'
+                    },
+                    {
+                      title: 'Down',
+                      value: 'down'
+                    }
+                  ]
+                }
               }
-            }]
+            ]
           }
         ]
       })
@@ -226,7 +241,8 @@ const start = (app: any) => {
 
     id: 'signalk-relay-windlass',
     name: 'Signal K Relay Windlass',
-    description: 'Signal K Plugin to control a windlass using two relay switches',
+    description:
+      'Signal K Plugin to control a windlass using two relay switches',
 
     schema: {
       type: 'object',
@@ -235,22 +251,19 @@ const start = (app: any) => {
         windlassPath: {
           type: 'string',
           title: 'Windlass State Path',
-          description:
-            'The path to use for the windlass state',
+          description: 'The path to use for the windlass state',
           default: 'electrical.windlass.control.state'
         },
         upRelayPath: {
           type: 'string',
           title: 'Up Relay Path',
-          description:
-            'The path to the up relay switch',
+          description: 'The path to the up relay switch',
           default: 'electrical.windlass.up.state'
         },
         downRelayPath: {
           type: 'string',
           title: 'Down Relay Path',
-          description:
-            'The path to the down relay switch',
+          description: 'The path to the down relay switch',
           default: 'electrical.windlass.down.state'
         },
         timeoutSeconds: {
@@ -258,12 +271,17 @@ const start = (app: any) => {
           title: 'Safety Timeout (seconds)',
           description:
             'Maximum time windlass can run continuously before automatic shutoff (0 = no timeout)',
-          default: 30,
-          minimum: 0,
-          maximum: 300
+          default: 10
+        },
+        switchingDelaySeconds: {
+          type: 'number',
+          title: 'Direction Switch Delay (seconds)',
+          description:
+            'Delay when switching between up and down directions (0 = no delay)',
+          default: 5
         }
       }
-    },
+    }
 
     /*
     uiSchema: () => {
@@ -284,7 +302,7 @@ const start = (app: any) => {
     //registerWithRouter: (router) => {}
   }
 
-  function sendState( state: WindlassState ) {
+  function sendState(state: WindlassState) {
     app.debug(`Sending windlass state: ${state}`)
     app.handleMessage(plugin.id, {
       updates: [
@@ -306,18 +324,20 @@ const start = (app: any) => {
       if (reply.state === 'COMPLETED') {
         if (reply.statusCode === 200) {
           app.debug('Down relay turned off, now turning on up relay')
-          app.putSelfPath(props.upRelayPath, true, (reply: any) => {
-            if (reply.state === 'COMPLETED') {
-              if (reply.statusCode === 200) {
-                app.debug('Up relay activated successfully')
-                sendState(WindlassState.Up)
-                cb(completed)
-              } else {
-                app.debug(`Up relay activation failed: ${reply.statusCode}`)
-                cb({ ...error, message: reply.message })
+          setTimeout(() => {
+            app.putSelfPath(props.upRelayPath, true, (reply: any) => {
+              if (reply.state === 'COMPLETED') {
+                if (reply.statusCode === 200) {
+                  app.debug('Up relay activated successfully')
+                  sendState(WindlassState.Up)
+                  cb(completed)
+                } else {
+                  app.debug(`Up relay activation failed: ${reply.statusCode}`)
+                  cb({ ...error, message: reply.message })
+                }
               }
-            } 
-          })
+            })
+          }, currentState === WindlassState.Down ? props.switchingDelaySeconds * 1000 : 0)
         } else {
           app.debug(`Up relay PUT failed: ${reply.statusCode}`)
           cb({ ...error, message: reply.message })
@@ -332,18 +352,20 @@ const start = (app: any) => {
       if (reply.state === 'COMPLETED') {
         if (reply.statusCode === 200) {
           app.debug('Up relay turned off, now turning on down relay')
-          app.putSelfPath(props.downRelayPath, true, (reply: any) => {
-            if (reply.state === 'COMPLETED') {
-              if (reply.statusCode === 200) {
-                app.debug('Down relay activated successfully')
-                sendState(WindlassState.Down)
-                cb(completed)
-              } else {
-                app.debug(`Down relay activation failed: ${reply.statusCode}`)
-                cb({ ...error, message: reply.message })
+          setTimeout(() => {
+            app.putSelfPath(props.downRelayPath, true, (reply: any) => {
+              if (reply.state === 'COMPLETED') {
+                if (reply.statusCode === 200) {
+                  app.debug('Down relay activated successfully')
+                  sendState(WindlassState.Down)
+                  cb(completed)
+                } else {
+                  app.debug(`Down relay activation failed: ${reply.statusCode}`)
+                  cb({ ...error, message: reply.message })
+                }
               }
-            }
-          })
+            })
+          }, currentState === WindlassState.Up ? props.switchingDelaySeconds * 1000 : 0)
         } else {
           app.debug(`Up relay deactivation failed: ${reply.statusCode}`)
           cb({ ...error, message: reply.message })
