@@ -335,7 +335,19 @@ const start = (app: ServerAPI) => {
             if (value === true || value === 1) {
               resetChainCounter()
               cb(completed)
-              ;(app as any).putSelfPath(props.chainCounterResetPath, false) // Reset the reset command back to false
+              app.handleMessage(plugin.id, {
+                updates: [
+                  {
+                    values: [
+                      {
+                        path: props.chainCounterResetPath as Path,
+                        value: false
+                      }
+                    ]
+                  }
+                ]
+              })
+            
               return completed
             } else {
               app.debug(`Invalid chain reset command: ${value}`)
@@ -524,7 +536,7 @@ const start = (app: ServerAPI) => {
           type: 'string',
           title: 'Chain Counter Reset Path',
           description: 'Signal K path for chain counter reset command',
-          default: 'electrical.windlass.chainCounterReset'
+          default: 'electrical.windlass.chainCounterReset.state'
         }
       }
     }
