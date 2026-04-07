@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+/// <reference types="node" />
+
 import { ServerAPI, Plugin, Path, ActionResult } from '@signalk/server-api'
 
 enum WindlassState {
