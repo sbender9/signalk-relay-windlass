@@ -383,7 +383,7 @@ const start = (app: ServerAPI) => {
       app.debug(`  externalDownPath: ${props.externalDownPath}`)
 
       statePath = path.join(app.getDataDirPath(), 'state.json')
-      
+
       if (fs.existsSync(statePath)) {
         let stateString
         try {
