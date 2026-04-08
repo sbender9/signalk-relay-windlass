@@ -24,6 +24,9 @@ import {
   MetaValue
 } from '@signalk/server-api'
 
+import path from 'path'
+import fs from 'fs'
+
 enum WindlassState {
   Up = 'up',
   Off = 'off',
@@ -52,10 +55,11 @@ const start = (app: ServerAPI) => {
   let downRelayState = false
   let currentState: WindlassState = WindlassState.Off
   let timeoutTimer: NodeJS.Timeout | null = null
-  let chainOut: number = 0 // Chain out in feet
   let lastChainUpdate: number = Date.now() // Last time chain counter was updated
   let chainCounterUpdateTimer: NodeJS.Timeout | null = null // Timer for continuous chain counter updates
   let notificationResetTimer: NodeJS.Timeout | null = null // Timer for resetting timeout notification
+  let statePath: string | null = null
+  let state: any = null
 
   // External control state tracking for chain counter
   let externalUpState = false
@@ -128,7 +132,7 @@ const start = (app: ServerAPI) => {
           values: [
             {
               path: props.chainCounterPath as Path,
-              value: chainOut * 0.3048 // Convert feet to meters
+              value: state.chainOut * 0.3048 // Convert feet to meters
             }
           ]
         }
@@ -161,22 +165,29 @@ const start = (app: ServerAPI) => {
     }
 
     // Update chain counter
-    chainOut += chainMovement
+    state.chainOut += chainMovement
     // Ensure chain out doesn't go negative
-    chainOut = Math.max(0, chainOut)
+    state.chainOut = Math.max(0, state.chainOut)
 
     if (Math.abs(chainMovement) > 0.001) {
       // Only log significant changes
       app.debug(
-        `Chain counter updated: ${chainMovement.toFixed(2)}ft movement, total out: ${chainOut.toFixed(2)}ft`
+        `Chain counter updated: ${chainMovement.toFixed(2)}ft movement, total out: ${state.chainOut.toFixed(2)}ft`
       )
     }
+
+    saveState()
 
     // Send chain counter update to Signal K
     sendChainCounter()
 
     // Also send via continuous update if configured
     sendChainCounterUpdate()
+  }
+
+  function saveState() {
+    if (!statePath) return
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
   }
 
   function sendChainCounter() {
@@ -188,7 +199,7 @@ const start = (app: ServerAPI) => {
           values: [
             {
               path: props.chainCounterPath as Path,
-              value: chainOut * 0.3048
+              value: state.chainOut * 0.3048
             }
           ]
         }
@@ -198,7 +209,8 @@ const start = (app: ServerAPI) => {
 
   function resetChainCounter() {
     app.debug('Resetting chain counter to 0')
-    chainOut = 0
+    state.chainOut = 0
+    saveState()
     sendChainCounter()
   }
 
@@ -369,6 +381,26 @@ const start = (app: ServerAPI) => {
       app.debug(`  chainCounterResetPath: ${props.chainCounterResetPath}`)
       app.debug(`  externalUpPath: ${props.externalUpPath}`)
       app.debug(`  externalDownPath: ${props.externalDownPath}`)
+
+      statePath = path.join(app.getDataDirPath(), 'state.json')
+      
+      if (fs.existsSync(statePath)) {
+        let stateString
+        try {
+          stateString = fs.readFileSync(statePath, 'utf8')
+        } catch (e) {
+          app.error('Could not read state ' + statePath + ' - ' + e)
+          return
+        }
+        try {
+          state = JSON.parse(stateString)
+        } catch (e) {
+          app.error('Could not parse state ' + e)
+          return
+        }
+      } else {
+        state = { chainOut: 0 }
+      }
 
       // Initialize chain counter
       lastChainUpdate = Date.now()
