@@ -382,9 +382,12 @@ const start = (app: ServerAPI) => {
       app.debug(`  externalUpPath: ${props.externalUpPath}`)
       app.debug(`  externalDownPath: ${props.externalDownPath}`)
 
-      statePath = path.join(app.getDataDirPath(), 'state.json')
+      if (app.getDataDirPath) {
+        // for tests
+        statePath = path.join(app.getDataDirPath(), 'state.json')
+      }
 
-      if (fs.existsSync(statePath)) {
+      if (statePath != null && fs.existsSync(statePath)) {
         let stateString
         try {
           stateString = fs.readFileSync(statePath, 'utf8')
