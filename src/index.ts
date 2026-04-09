@@ -597,7 +597,7 @@ const start = (app: ServerAPI) => {
               displayName: 'Chain Out',
               description: 'Length of chain deployed in meters',
               units: 'm',
-              displayUnits: {"category":"length"}
+              displayUnits: { category: 'length' }
             } as MetaValue
           }
         ]
