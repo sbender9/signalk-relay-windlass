@@ -1,6 +1,6 @@
 {
   "name": "signalk-relay-windlass",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Signal K Plugin to control a windlass using two relay switches",
   "main": "dist/index.js",
   "scripts": {
