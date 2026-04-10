@@ -721,15 +721,13 @@ const start = (app: ServerAPI) => {
           type: 'string',
           title: 'External Up Control Path (Optional)',
           description:
-            'Signal K path for external windlass up control - used for chain counter tracking only',
-          default: 'electrical.windlass.externalUp.state'
+            'Signal K path for external windlass up control - used for chain counter tracking only'
         },
         externalDownPath: {
           type: 'string',
           title: 'External Down Control Path (Optional)',
           description:
-            'Signal K path for external windlass down control - used for chain counter tracking only',
-          default: 'electrical.windlass.externalDown.state'
+            'Signal K path for external windlass down control - used for chain counter tracking only'
         }
       }
     }
