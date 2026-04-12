@@ -101,8 +101,8 @@ const start = (app: ServerAPI) => {
       return
     }
 
-    const updateInterval = 1000 // Fixed 1 second interval
-    app.debug('Starting chain counter continuous updates every 1 second')
+    const updateInterval = 500 // Fixed 0.5 second interval
+    app.debug('Starting chain counter continuous updates every 0.5 second')
 
     chainCounterUpdateTimer = setInterval(() => {
       // Update chain counter based on the appropriate active state
@@ -174,6 +174,16 @@ const start = (app: ServerAPI) => {
       app.debug(
         `Chain counter updated: ${chainMovement.toFixed(2)}ft movement, total out: ${state.chainOut.toFixed(2)}ft`
       )
+    }
+
+    if (
+      props.chainCounterResetToZero != null &&
+      newState === WindlassState.Up
+    ) {
+      // If configured to reset to zero when raising anchor, check if we crossed the reset threshold
+      if (state.chainOut <= props.chainCounterResetToZero) {
+        resetChainCounter()
+      }
     }
 
     saveState()
@@ -705,6 +715,14 @@ const start = (app: ServerAPI) => {
             'Rate at which chain is deployed/retrieved in feet per minute (0 = disable chain counter)',
           default: 60
         },
+        chainCounterResetToZero: {
+          type: 'number',
+          title: 'Chain Counter Reset to Zero',
+          description:
+            'Value to reset the chain counter to zero when raising the anchor',
+          default: 0
+        },
+
         chainCounterPath: {
           type: 'string',
           title: 'Chain Counter Path',
