@@ -176,7 +176,10 @@ const start = (app: ServerAPI) => {
       )
     }
 
-    if ( props.chainCounterResetToZero != null && newState === WindlassState.Up) {
+    if (
+      props.chainCounterResetToZero != null &&
+      newState === WindlassState.Up
+    ) {
       // If configured to reset to zero when raising anchor, check if we crossed the reset threshold
       if (state.chainOut <= props.chainCounterResetToZero) {
         resetChainCounter()
