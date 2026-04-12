@@ -370,10 +370,9 @@ const start = (app: ServerAPI) => {
       }
 
       currentState = newState
-
-      // Update overall windlass state (external takes precedence if active)
-      updateOverallWindlassState()
     }
+    // Update overall windlass state (external takes precedence if active)
+    updateOverallWindlassState()
   }
 
   const plugin: Plugin = {
